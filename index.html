@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=], initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
+    <title>Acme Stateful Notes</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script type='text/babel'>
+    const {render} = ReactDOM;
+    const {Component} = React;
+    const {HashRouter, Route, Switch, Redirect, Link} = ReactRouterDOM
+    const root = document.querySelector('#root')
+    const API = 'https://acme-users-api-rev.herokuapp.com/api';
+
+    const fetchUser = async ()=> {
+    const storage = window.localStorage;
+    const userId = storage.getItem('userId'); 
+    if(userId){
+        try {
+        return (await axios.get(`${API}/users/detail/${userId}`)).data;
+        }
+        catch(ex){
+        storage.removeItem('userId');
+        return fetchUser();
+        }
+    }
+    const user = (await axios.get(`${API}/users/random`)).data;
+    storage.setItem('userId', user.id);
+    return  user;
+    };
+
+    const Nav = ()=>{
+        return(
+            <div>
+                <Link to='/notes'>Notes</Link>
+                <Link to='/archived'>Archived</Link>
+                <Link to='/create'>Create</Link>
+            </div>
+        )
+    }
+
+    const Notes = ({notes, handleArchive, handleDestroy}) =>{
+            return(
+                <ul>
+                    {
+                        notes.filter(note=>!note.archived).map(note =>(
+                            <li key={note.id}>{note.text} <br/>
+                                <button onClick={()=>handleArchive(note, true)}>archive</button>
+                                <button onClick={()=>handleDestroy(note)}>destroy</button>
+                            </li>))
+                    }
+                </ul>
+            )
+    }
+
+    const Archived = ({notes, handleArchive, handleDestroy}) =>{
+        return(
+            <ul>
+                    {
+                        notes.filter(note=>note.archived).map(note =>(
+                            <li key={note.id}>{note.text} <br/>
+                                <button onClick={()=>handleArchive(note, false)}>unarchive</button>
+                                <button onClick={()=>handleDestroy(note)}>destroy</button>
+                            </li>))
+                    }
+                </ul>
+        )
+    }
+
+    class Create extends Component{
+        constructor(){
+            super()
+            this.state={
+                text: ''
+            }
+            this.textChange = this.textChange.bind(this)
+            this.addNote = this.addNote.bind(this)
+        }
+        textChange(event) {
+            const {text} = this.state
+            this.setState({text: event.target.value})
+        }
+        addNote(text) {
+            this.props.createNote(text)
+            this.props.history.push('/notes')
+        }
+        render(){
+            const {text} = this.state
+            const {textChange} = this
+            return(
+                <div>
+                    <p>{this.props.notes.length > 4 ? 'Can only have 5 notes 😭' : ''}</p>
+                    <input type="text" onChange={textChange}/>
+                    <button disabled={!text || this.props.notes.length > 4 } onClick={() => this.addNote(text)}>Create</button>
+                </div>
+            )
+        }
+    }
+
+
+    class App extends Component{
+        constructor(){
+            super();
+            this.state={
+                user:{},
+                notes:[]
+            }
+            this.handleArchive = this.handleArchive.bind(this)
+            this.handleDestroy = this.handleDestroy.bind(this)
+            this.createNote = this.createNote.bind(this)
+        }
+        async handleArchive(note, archive){
+            const {user, notes} = this.state
+            console.log(note)
+            const id = note.id;
+            const updatedNote = (await (axios.put(`${API}/users/${user.id}/notes/${id}`, {archived:archive, text:note.text}))).data
+            console.log(updatedNote)
+            const something = notes.find(note=> note.id === updatedNote.id)
+            something.archived= archive 
+            this.setState(notes)
+        }
+        async  handleDestroy(note) {
+            const {user, notes} = this.state
+            const id = note.id;
+            await (axios.delete(`${API}/users/${user.id}/notes/${id}`))
+            this.setState({notes: notes.filter(note => note.id !== id)})
+        }
+        async createNote(text) {
+            console.log(text)
+            const {user, notes} = this.state
+            const newNote = (await axios.post(`${API}/users/${user.id}/notes`, {archived: false, text})).data
+            this.setState({notes: [...notes, newNote]})
+        }
+        async componentDidMount(){
+            const user = await fetchUser()
+            const notes = (await axios.get(`${API}/users/${user.id}/notes`)).data
+            this.setState({user,notes})
+        }
+        render(){
+            const {notes} = this.state
+            const {handleArchive, handleDestroy, createNote} = this
+            return (
+                <HashRouter>
+                <Nav />
+                    <h1>Acme Note -- taker for --</h1>
+                <Switch>
+                    <Route path='/notes' render={()=> <Notes notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
+                    <Route path='/archived' render={()=> <Archived notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
+                    <Route path='/create' render={(props)=> <Create notes={notes} createNote={createNote} history={props.history}/>}/>
+                    <Redirect to='/notes'/>
+                </Switch>
+                </HashRouter>
+            )
+        }
+    }
+    render(<App/>, root)
+    </script>
+</body>
+</html>
