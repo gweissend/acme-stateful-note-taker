@@ -145,12 +145,12 @@
             this.setState({user,notes})
         }
         render(){
-            const {notes} = this.state
+            const {notes, user} = this.state
             const {handleArchive, handleDestroy, createNote} = this
             return (
                 <HashRouter>
                 <Nav />
-                    <h1>Acme Note -- taker for --</h1>
+                    <h1>Acme Note -- taker for {user.fullName}</h1>
                 <Switch>
                     <Route path='/notes' render={()=> <Notes notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
                     <Route path='/archived' render={()=> <Archived notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
