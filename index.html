@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=], initial-scale=1.0">
@@ -11,11 +12,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
     <title>Acme Stateful Notes</title>
     <style>
-        .selected{
+        .selected {
             color: tomato;
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
     <script type='text/babel'>
@@ -72,28 +74,41 @@
     }
 
     class Note extends Component{
-
-        constructor(){
+        constructor() {
             super();
             this.state = {
-                newNote:''
+                newNoteText: '',
             }
             this.update = this.update.bind(this)
         }
         update(event) {
-            const {newNote} = this.state
-            this.setState({newNote: event.target.value})
-            
+            this.setState({newNoteText: event.target.value})
+        }
+        componentDidMount() {
+            const { notes, match } = this.props
+
+            const note = notes.find(note => note.id === match.params.id)
+            const newNoteText = note ? note.text : ''
+            this.setState({ newNoteText })
+        }
+        componentDidUpdate(prevProps, prevState) {
+            const { newNoteText } = this.state
+            const { notes, match } = this.props
+
+            const note = (notes.find(note => note.id === match.params.id))
+
+            if(note && prevProps.notes.length === 0) {
+            // if(note && newNoteText === '' && prevState.newNoteText === '') {
+                this.setState({newNoteText: note.text});
+            }
         }
         render(){
-            const {newNote} = this.state
-            const value = (this.props.notes.find(note => note.id === this.props.match.params.id))
-            console.log(value.text)
+            const {newNoteText, notes} = this.state
+            const {handleEdit, match} = this.props
             return (    
                 <form>
-                    <input onChange={this.update} value = {''}>
-                    </input>
-                    <button onClick={() => this.props.handleEdit(newNote, this.props.match.params.id)}>Submit</button>
+                    <input onChange={this.update} value={newNoteText}/>
+                    <button onClick={() => handleEdit(newNoteText, match.params.id)}>Submit</button>
                 </form>
             )
         }
@@ -103,14 +118,14 @@
     const Archived = ({notes, handleArchive, handleDestroy}) =>{
         return(
             <ul>
-                    {
-                        notes.filter(note=>note.archived).map(note =>(
-                            <li key={note.id}>{note.text} <br/>
-                                <button onClick={()=>handleArchive(note, false)}>unarchive</button>
-                                <button onClick={()=>handleDestroy(note)}>destroy</button>
-                            </li>))
-                    }
-                </ul>
+                {
+                    notes.filter(note=>note.archived).map(note =>(
+                        <li key={note.id}>{note.text} <br/>
+                            <button onClick={()=>handleArchive(note, false)}>unarchive</button>
+                            <button onClick={()=>handleDestroy(note)}>destroy</button>
+                        </li>))
+                }
+            </ul>
         )
     }
 
@@ -165,11 +180,11 @@
             something.archived = archive
             this.setState(notes)
         }
-        async handleEdit(newNote, id){
+        async handleEdit(newNoteText, id){
             const {user, notes} = this.state
-            const updatedNote = (await (axios.put(`${API}/users/${user.id}/notes/${id}`, {archived: false, text: newNote}))).data
+            const updatedNote = (await (axios.put(`${API}/users/${user.id}/notes/${id}`, {archived: false, text: newNoteText}))).data
             const something = notes.find(note=> note.id === updatedNote.id)
-            something.text = newNote
+            something.text = newNoteText
             this.setState(notes)
         }
         async  handleDestroy(note) {
@@ -180,8 +195,8 @@
         }
         async createNote(text) {
             const {user, notes} = this.state
-            const newNote = (await axios.post(`${API}/users/${user.id}/notes`, {archived: false, text})).data
-            this.setState({notes: [...notes, newNote]})
+            const newNoteText = (await axios.post(`${API}/users/${user.id}/notes`, {archived: false, text})).data
+            this.setState({notes: [...notes, newNoteText]})
         }
         async componentDidMount(){
             const user = await fetchUser()
@@ -209,4 +224,5 @@
     render(<App/>, root)
     </script>
 </body>
+
 </html>
