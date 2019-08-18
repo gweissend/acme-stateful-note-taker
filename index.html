@@ -10,19 +10,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-router-dom/5.0.1/react-router-dom.js"></script>
     <title>Acme Stateful Notes</title>
+    <style>
+        .selected{
+            color: tomato;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type='text/babel'>
     const {render} = ReactDOM;
     const {Component} = React;
-    const {HashRouter, Route, Switch, Redirect, Link} = ReactRouterDOM
+    const {HashRouter, Route, NavLink, Switch, Redirect, Link} = ReactRouterDOM
     const root = document.querySelector('#root')
     const API = 'https://acme-users-api-rev.herokuapp.com/api';
 
     const fetchUser = async ()=> {
     const storage = window.localStorage;
-    const userId = storage.getItem('userId'); 
+    const userId = storage.getItem('userId');
     if(userId){
         try {
         return (await axios.get(`${API}/users/detail/${userId}`)).data;
@@ -40,26 +45,52 @@
     const Nav = ()=>{
         return(
             <div>
-                <Link to='/notes'>Notes</Link>
-                <Link to='/archived'>Archived</Link>
-                <Link to='/create'>Create</Link>
+                <NavLink to='/notes' activeClassName = 'selected'>Notes</NavLink>
+                <NavLink to='/archived' activeClassName = 'selected'>Archived</NavLink>
+                <NavLink to='/create' activeClassName = 'selected'>Create</NavLink>
             </div>
         )
     }
 
-    const Notes = ({notes, handleArchive, handleDestroy}) =>{
-            return(
+    const Notes = ({notes, handleArchive, handleDestroy, match}) =>{
+        return(
+                <div>
                 <ul>
                     {
                         notes.filter(note=>!note.archived).map(note =>(
-                            <li key={note.id}>{note.text} <br/>
+                            <li key={note.id}>
+                                <Link to ={`/notes/${note.id}`}>{note.text}</Link> <br/>
                                 <button onClick={()=>handleArchive(note, true)}>archive</button>
                                 <button onClick={()=>handleDestroy(note)}>destroy</button>
-                            </li>))
+                            </li>
+
+                            ))
                     }
                 </ul>
+                </div>
             )
     }
+
+    class Note extends Component{
+        constructor(){
+            super();
+            this.state = {
+                newNote:''
+            }
+        }
+
+        render(){
+            const {notes, match} = this
+            return(
+                <form>
+                    <input value = ''>
+                    </input>
+                    <button>Submit</button>
+                </form>
+            )
+        }
+    }
+
 
     const Archived = ({notes, handleArchive, handleDestroy}) =>{
         return(
@@ -124,7 +155,7 @@
             const updatedNote = (await (axios.put(`${API}/users/${user.id}/notes/${id}`, {archived:archive, text:note.text}))).data
             console.log(updatedNote)
             const something = notes.find(note=> note.id === updatedNote.id)
-            something.archived= archive 
+            something.archived= archive
             this.setState(notes)
         }
         async  handleDestroy(note) {
@@ -152,7 +183,8 @@
                 <Nav />
                     <h1>Acme Note -- taker for {user.fullName}</h1>
                 <Switch>
-                    <Route path='/notes' render={()=> <Notes notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
+                    <Route exact path='/notes' render={({match})=> <Notes notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy} match = {match} /> } />
+                    <Route path = '/notes/:id' render = {({match}) => <Note notes={notes} match={match}/> } />
                     <Route path='/archived' render={()=> <Archived notes={notes} handleArchive={handleArchive} handleDestroy={handleDestroy}/>} />
                     <Route path='/create' render={(props)=> <Create notes={notes} createNote={createNote} history={props.history}/>}/>
                     <Redirect to='/notes'/>
